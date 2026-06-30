@@ -158,7 +158,6 @@ check_docker() {
     if ! command -v docker &> /dev/null; then
         print_step "Установка Docker..."
         if curl -fsSL https://get.docker.com | sh > /tmp/install_log.txt 2>&1; then
-            sudo usermod -aG docker $USER 2>/dev/null || true
             print_success "Docker установлен"
         else
             print_error "Не удалось установить Docker"
@@ -368,8 +367,8 @@ main() {
     
     # Создание директории
     if [ ! -d "$INSTALL_DIR" ]; then
-        sudo mkdir -p "$INSTALL_DIR"
-        sudo chown $USER:$USER "$INSTALL_DIR"
+        mkdir -p "$INSTALL_DIR"
+        chown $USER:$USER "$INSTALL_DIR"
     fi
     
     cd "$INSTALL_DIR"
