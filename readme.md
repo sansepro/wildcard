@@ -1,118 +1,147 @@
-# Wildcard
+﻿# Генератор Wildcard SSL Сертификатов
 
-Автоматическая настройка и получение wildcard SSL-сертификатов через **Cloudflare DNS API** с использованием Let's Encrypt.
+Автоматическое получение и управление wildcard SSL сертификатами от Let`s Encrypt через Cloudflare DNS.
 
-Проект предназначен для быстрого выпуска вида `*.example.com` и `example.com` без необходимости вручную создавать DNS-записи.
+## 🚀 Установка
 
----
-
-## Возможности
-
-* 🔒 Получение wildcard SSL-сертификатов Let's Encrypt
-* ☁️ Проверка домена через Cloudflare DNS API
-* 🚀 Установка одной командой
-* 📂 Хранение сертификатов в указанной директории
-* 🐳 Поддержка Docker
-
----
-
-# Установка
-
-Склонируйте репозиторий:
+### Способ 1: Интерактивная установка (рекомендуется)
 
 ```bash
-git clone https://github.com/sansepro/wildcard.git && cd ./wildcard
+bash <(wget -qO- https://raw.githubusercontent.com/sansepro/wildcard/main/install.sh)
 ```
 
-Запустите установочный скрипт:
+### Способ 2: Полностью автоматическая (без вопросов)
 
 ```bash
-bash start.sh
+bash <(wget -qO- https://raw.githubusercontent.com/sansepro/wildcard/main/install.sh) \
+  -e admin@example.com \
+  -t your_cloudflare_token \
+  -d "*.example.com,example.com" \
+  -p example.com \
+  -y
 ```
 
----
-
-# Настройка
-
-Перед запуском изменить файл `.env`.
-
-Пример:
-
-```env
-EMAIL="site@example.com"
-CLOUDFLARE_API_TOKEN="your_cloudflare_api_token"
-
-DOMAIN="*.example.com,example.com"
-PRIMARY_DOMAIN="example.com"
-
-BASE_CERT_PATH="/certificates"
-```
-
-## Описание переменных
-
-| Переменная             | Описание                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `EMAIL`                | Email, используемый при регистрации сертификата Let's Encrypt.                       |
-| `CLOUDFLARE_API_TOKEN` | API Token Cloudflare с правами на управление DNS-записями нужной зоны.               |
-| `DOMAIN`               | Домены, для которых будет выпущен сертификат. Несколько доменов разделяются запятой. |
-| `PRIMARY_DOMAIN`       | Основной домен, используемый в качестве имени сертификата.                           |
-| `BASE_CERT_PATH`       | Директория, в которой будут храниться сертификаты и ключи.                           |
-
----
-
-# Требования
-
-* Docker
-* Docker Compose
-* Git
-* Домен, подключенный к Cloudflare
-* API Token Cloudflare с правами:
-
-```
-Zone
- ├── DNS:Edit
- └── Zone:Read
-```
-
----
-
-# Получаемый сертификат
-
-При указанной конфигурации
-
-```env
-DOMAIN="*.example.com,example.com"
-```
-
-будет выпущен сертификат для:
-
-* `example.com`
-* `*.example.com`
-
----
-
-# Обновление
-
-Для обновления проекта выполните:
+### Способ 3: Минимальный вывод (quiet mode)
 
 ```bash
-cd wildcard
-git pull
-bash start.sh
+bash <(wget -qO- https://raw.githubusercontent.com/sansepro/wildcard/main/install.sh) \
+  -e admin@example.com \
+  -t your_cloudflare_token \
+  -d "*.example.com,example.com" \
+  -p example.com \
+  -y -q
 ```
 
----
+## 📋 Требования
 
-# Использование
+- Ubuntu/Debian Linux
+- Домен на Cloudflare
+- Cloudflare API Token с правами `Zone:Read` и `DNS:Edit`
 
-После настройки `.env` достаточно выполнить:
+Docker будет установлен автоматически.
+
+## ⚙️ Флаги установщика
+
+### Основные параметры
+
+```
+-e, --email EMAIL           Email для Let`s Encrypt
+-t, --token TOKEN           Cloudflare API Token
+-d, --domain DOMAIN         Домены (*.example.com,example.com)
+-p, --primary DOMAIN        Основной домен (example.com)
+```
+
+### Дополнительные параметры
+
+```
+-i, --install-dir DIR       Директория установки (дефолт: /opt/certbot)
+-y, --yes                   Ответить 'да' на все вопросы (автоматический режим)
+-q, --quiet                 Минимальный вывод (только ошибки)
+--skip-docker-check         Пропустить проверку Docker
+--skip-cron                 Пропустить настройку cron
+-h, --help                  Показать справку
+```
+
+## 🔑 Получение API токена
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → Профиль → API Tokens
+2. Create Token → выберите "Edit zone DNS"
+3. Установите права: Zone - DNS - Edit и Zone - Zone - Read
+4. Скопируйте токен
+
+## 📁 Сертификаты
+
+После установки сертификаты будут в `/opt/certbot/cert/<домен>/`:
+
+```
+chain.crt       # Цепь сертификата
+privkey.key     # Приватный ключ
+certificate.yml # Конфиг для Traefik
+```
+
+## 📚 Использование
+
+### Nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name example.com *.example.com;
+    ssl_certificate /opt/certbot/cert/example.com/chain.crt;
+    ssl_certificate_key /opt/certbot/cert/example.com/privkey.key;
+}
+```
+
+### Traefik
+
+```yaml
+include:
+  - /opt/certbot/cert/example.com/certificate.yml
+```
+
+### Apache
+
+```apache
+<VirtualHost *:443>
+    ServerName example.com
+    SSLEngine on
+    SSLCertificateFile /opt/certbot/cert/example.com/chain.crt
+    SSLCertificateKeyFile /opt/certbot/cert/example.com/privkey.key
+</VirtualHost>
+```
+
+## 🔄 Обновление
+
+### Вручную
 
 ```bash
-bash start.sh
+cd /opt/certbot && docker compose run --rm certbot-renew
 ```
 
----
+### Автоматически
 
-# Лицензия
+Cron настраивается автоматически (если не указан флаг `--skip-cron`): `0 5 * * *` (05:00 каждый день)
 
-MIT License.
+Просмотр логов:
+```bash
+tail -f /tmp/certbot_cron.log
+```
+
+## 🆘 Проблемы
+
+### Docker не найден
+Установщик установит его автоматически. Или пропустите проверку флагом `--skip-docker-check`.
+
+### Валидация challenge не удалась
+- Проверьте домен подключен к Cloudflare
+- Проверьте права API токена
+- Дайте 60+ секунд на распространение DNS
+
+### Логи Docker
+```bash
+cd /opt/certbot && docker compose logs
+```
+
+## 📄 Лицензия
+
+MIT License
